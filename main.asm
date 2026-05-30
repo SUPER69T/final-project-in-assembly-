@@ -21,8 +21,8 @@ data segment
         result db 13, 10, 'Your result is: $'
 
         newline db 0Dh, 0Ah                                             ; for convenient newline printing.
-        triangle_string_buffer db 255, ?, 255 dup('@'), '$'             ; a string of length 'Number' of the character '@'.
-        square_string_buffer db 255, ?, 255 dup('*'), '$'               ; a string of length 'Number' of the character '*'.
+        triangle_string_buffer db 255 dup('@'), '$'             ; a string of length 'Number' of the character '@'.
+        square_string_buffer db 255 dup('*'), '$'               ; a string of length 'Number' of the character '*'.
 
 data ends
 
@@ -38,28 +38,36 @@ main:
 
                 ; Printing start_loop_msg:
                 mov dx, offset start_loop_msg   ; 1. Point DX to the memory address of the message
-                mov ah, 9                       ; 2. Tell DOS we want to use the "Print String" function
+                mov ah,9
+                int 21H
+
+
+                mov ah,01H                       ; 2. Tell DOS we want to use the "Print String" function
                 int 21h                         ; 3. Trigger the DOS interrupt to execute that function
 
-                call Ascii2DecInput             ; taking input.
+
+
+                ; call Ascii2DecInput             ; taking input.
                 
-                cmp ax, 1                       ; relooping if ax < 1
-                jb failed_start_eval
+                ; cmp ax, '1'                       ; relooping if ax < 1
+                ; jb failed_start_eval
 
-                cmp ax, 3                       ; relooping if ax < N
-                ja failed_start_eval
+                ; cmp ax, '3'                       ; relooping if ax < N
+                ; ja failed_start_eval
 
 
-                cmp ax,1
+
+
+                cmp ax,'1'
                 je input1evaluation
 
-                cmp ax,2
+                cmp ax,'2'
                   je input2evaluation
 
-                cmp ax,3
+                cmp ax,'3'
                   je quit_program
 
-
+                jmp failed_start_eval
 
 
 
@@ -72,7 +80,7 @@ main:
                         int 21h                         ; 3. Trigger the DOS interrupt to execute that function
 
                         call Ascii2DecInput             ; taking input.
-                        mov Number, AX ; Save the number we got from the proc Ascli2DecInput so AX will be free.
+                        mov [Number], AX                ; Save the number we got from the proc Ascli2DecInput so AX will be free.
                         cmp ax, 3                       ; relooping if N < 3
                         jb failed_eval1
 
@@ -94,6 +102,12 @@ main:
                         cmp al,1
                         je Triangle
 
+                        Square:
+                        call Print_Square
+                        jmp start_input_evaluation             
+                Triangle: 
+                        call Print_Triangle
+                        jmp start_input_evaluation
                 input2evaluation:
 
 
@@ -101,23 +115,12 @@ main:
 
                 
                         
-                Square:
-                        call Print_Square
-                        jmp start_input_evaluation             
-                Triangle: 
-                        call Print_Triangle
-                        jmp start_input_evaluation
+                
 
                 quit_program:
                         mov ax,4cH  
                         int 21H
-                ;            outter: cx = 5
-                ;@           outter: cx = 5, inner: cx = 1
-                ;@@          outter: cx = 4, inner: cx = 2
-                ;@@@         outter: cx = 3, inner: cx = 3
-                ;@@@@        outter: cx = 2, inner: cx = 4
-                ;@@@@@       outter: cx = 1, inner: cx = 5
-                ; outter: cx = 0
+               
 
 
 
@@ -148,7 +151,8 @@ main:
 
                 cmp dx,0
                 jbe not_prime
-        
+                
+                loop start_loop
                 prime:
                      mov dx,offset result1
                      mov ah,9
@@ -161,14 +165,23 @@ main:
                      int 21h   
                      mov al,0
                      ret  
-
+        check_for_prime ENDP
 
         ; printing a right-angled Isosceles triangle (of length-N):
         Print_Triangle PROC
+                ; ---example---:
+                ;            outter: cx = 5
+                ;@           outter: cx = 5, inner: cx = 1
+                ;@@          outter: cx = 4, inner: cx = 2
+                ;@@@         outter: cx = 3, inner: cx = 3
+                ;@@@@        outter: cx = 2, inner: cx = 4
+                ;@@@@@       outter: cx = 1, inner: cx = 5
+                ; outter: cx = 0
+                
                 mov cx, 0                                       ; initiating the iterator to 0 (runs from 0 to 255).
                 
                 print_line:
-                        ; ---printing a word of size CX (0-255)---:
+                        ; ---printing a word of size CX (0 < CX <= Number)---:
                         mov ah, 40h                             ; 40h std writing/reading DOS.
                         mov bx, 1                               ; File handle 1 = standard output (screen).
                         inc cx                                  ; CX specifies number of chars printed from the buffer.  
@@ -180,7 +193,7 @@ main:
                         push cx                                 ; saving CX on the stack, every 40h function uses the CX register. 
                         mov ah, 40h                             
                         mov bx, 1                               
-                        mov cx, 2                               
+                        mov cx, 2                               ; 2 characters (CR+LF)              
                         mov dx, offset newline                  
                         int 21h
                         pop cx
@@ -196,10 +209,36 @@ main:
 
         ; print a square (of length-N):  
         Print_Square PROC
-                mov cl, [Number]
+                mov di, [Number]                                ; DI acts as our outter-loop's iterator =>
+                ; this avoids excessive use of push/pop operations on the CX register. 
 
+                print_line:
+                        ; checking for end of outter-loop:
+                        cmp di, 0               
+                        je end_loop                             ; Exit the loop if DI == 0.
 
-                ret
+                        ; ---printing a word of size CX (CX = Number)---:
+                        mov ah, 40h                             
+                        mov bx, 1      
+                        mov cx, [Number]                        ; cx = Number.                                              
+                        mov dx, offset square_string_buffer   
+                        int 21h 
+                        ; -----
+
+                        ; ---printing a newline---:
+                        mov ah, 40h                             
+                        mov bx, 1                               
+                        mov cx, 2                               
+                        mov dx, offset newline                  
+                        int 21h
+                        ; -----
+
+                        dec di                                            
+                        jmp print_line                          
+                
+                end_loop:
+                        ret
+
         Print_Square ENDP
 
         ; IO conversion procedures:
@@ -245,7 +284,7 @@ main:
         ;         int 21h
 
         ;         ; Conversion Setup 
-        ;         lea si, Number + 2       ; SI points to first typed char
+        ;         lea si, [Number] + 2       ; SI points to first typed char
         ;         mov cl, [Number + 1]     ; CX = number of chars typed
         ;         mov ch, 0
         ;         mov ax, 0                ; AX will hold our final number
@@ -288,8 +327,8 @@ main:
         ;         mov ah, 02h     ; DOS print character function
         ;         int 21h
         ;         loop print_loop
-                ret
-        Dec2AsciiOutput ENDP
+        ;         ret
+        ; Dec2AsciiOutput ENDP
 
 code ends
 end main
