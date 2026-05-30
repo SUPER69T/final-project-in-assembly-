@@ -6,7 +6,7 @@ data segment
         proc_1_msg db 13, 10, 'Enter a positive integer number N (255>N>2):', 13, 10, '$'
         proc_2_msg db 13, 10, 'Enter one decimal digit (between 2 to 9):', 13, 10, '$'
 
-        Number db 4, ?, 4 dup('$') ; Buffer for 3 digits + Carriage Return
+        Number dw ? ; To save the number we converted from HEX to BASE 10
         wrong_input1_msg db 13, 10, 'The number has to be greater than 2 and smaller than 255...', 13, 10, '$'
 
         ; ORG 100H ;for what we need this?
@@ -18,9 +18,12 @@ data segment
         ; Number of type word, and using the pointer: [Number]
         result1 db 'prime', 13, 10, '$'
         result2 db 'not prime', 13, 10, '$'
-
         result db 13, 10, 'Your result is: $'
-        BASE_NUMBER_TRIANGLE_SQUARE DW ? ;To save the number we converted from HEX to BASE 10
+
+        newline db 0Dh, 0Ah                                             ; for convenient newline printing.
+        triangle_string_buffer db 255, ?, 255 dup('@'), '$'             ; a string of length 'Number' of the character '@'.
+        square_string_buffer db 255, ?, 255 dup('*'), '$'               ; a string of length 'Number' of the character '*'.
+
 data ends
 
 code segment
@@ -50,35 +53,64 @@ main:
                 cmp ax,1
                 je input1evaluation
 
+                cmp ax,2
+                  je input2evaluation
 
-                        ; taking and checking 'Number' in a loop:
-                        input1evaluation:
+                cmp ax,3
+                  je quit_program
 
-                            ; Printing message1:
-                            mov dx, offset  proc_1_msg  ; 1. Point DX to the memory address of the message
-                            mov ah, 9                       ; 2. Tell DOS we want to use the "Print String" function
-                            int 21h                         ; 3. Trigger the DOS interrupt to execute that function
 
-                            call Ascii2DecInput             ; taking input.
-                            
-                            cmp ax, 3                       ; relooping if N < 3
-                            jb failed_eval1
 
-                            cmp ax, 254                     ; relooping if 254 < N
-                            ja failed_eval1
-                            mov [BASE_NUMBER_TRIANGLE_SQUARE],AX ; Save the number we got from the proc Ascli2DecInput so AX will be free.
-                            ; jmp 
 
-                            failed_eval1:
-                                mov dx, offset wrong_input1_msg   
-                                mov ah, 9                       
-                                int 21h
-                                jmp input1evaluation
+
+                ; taking and checking 'Number' in a loop:
+                input1evaluation:
+
+                        ; Printing message1:
+                        mov dx, offset  proc_1_msg  ; 1. Point DX to the memory address of the message
+                        mov ah, 9                       ; 2. Tell DOS we want to use the "Print String" function
+                        int 21h                         ; 3. Trigger the DOS interrupt to execute that function
+
+                        call Ascii2DecInput             ; taking input.
+                        mov Number, AX ; Save the number we got from the proc Ascli2DecInput so AX will be free.
+                        cmp ax, 3                       ; relooping if N < 3
+                        jb failed_eval1
+
+                        cmp ax, 254                     ; relooping if 254 < N
+                        ja failed_eval1
+                        jmp valid
+                        
+
+
+                        failed_eval1:
+                        mov dx, offset wrong_input1_msg   
+                        mov ah, 9                       
+                        int 21h
+                        jmp input1evaluation
+        
+                        ; push ax
+                        valid:                             ; Pushing the first Ascii2DecInput's output (AX) to the stack
+                        call check_for_prime
+                        cmp al,1
+                        je Triangle
+
+                input2evaluation:
+
+
+
+
                 
-                            ; push ax                             ; Pushing the first Ascii2DecInput's output (AX) to the stack
+                        
+                Square:
+                        call Print_Square
+                        jmp start_input_evaluation             
+                Triangle: 
+                        call Print_Triangle
+                        jmp start_input_evaluation
 
-
-
+                quit_program:
+                        mov ax,4cH  
+                        int 21H
                 ;            outter: cx = 5
                 ;@           outter: cx = 5, inner: cx = 1
                 ;@@          outter: cx = 4, inner: cx = 2
@@ -98,64 +130,107 @@ main:
                 jmp start_input_evaluation
 
         ; Exit to DOS
-        mov ax,4c00h                
+        mov ax, 4c00h                
         int 21h     
+
+
+        check_for_prime PROC 
+               mov cx, [Number]
+               DEC cx 
+        
+               start_loop:
+                cmp cx,1
+                jbe prime 
+                
+                mov ax, [Number]
+                mov dx,0 ;dx will hold the reminder
+                div cx
+
+                cmp dx,0
+                jbe not_prime
+        
+                prime:
+                     mov dx,offset result1
+                     mov ah,9
+                     int 21h
+                     mov al,1   
+                     ret   
+                not_prime:
+                     mov dx,offset result2
+                     mov ah,9
+                     int 21h   
+                     mov al,0
+                     ret  
 
 
         ; printing a right-angled Isosceles triangle (of length-N):
         Print_Triangle PROC
-            mov cx, [BASE_NUMBER_TRIANGLE_SQUARE]
-        
+                mov cx, 0                                       ; initiating the iterator to 0 (runs from 0 to 255).
+                
+                print_line:
+                        ; ---printing a word of size CX (0-255)---:
+                        mov ah, 40h                             ; 40h std writing/reading DOS.
+                        mov bx, 1                               ; File handle 1 = standard output (screen).
+                        inc cx                                  ; CX specifies number of chars printed from the buffer.  
+                        mov dx, offset triangle_string_buffer   ; Pointing DX to the buffer.
+                        int 21h
+                        ; -----
 
-            ret    
+                        ; ---printing a newline---:
+                        push cx                                 ; saving CX on the stack, every 40h function uses the CX register. 
+                        mov ah, 40h                             
+                        mov bx, 1                               
+                        mov cx, 2                               
+                        mov dx, offset newline                  
+                        int 21h
+                        pop cx
+                        ; -----
+                        
+                        ; checking the loop logic:
+                        cmp cx, [Number]                                    
+                        jne print_line                          ; Continue looping if cx!=triangle_string_buffer, otherwise return.
+                        ret
+                
         Print_Triangle ENDP
 
 
         ; print a square (of length-N):  
         Print_Square PROC
-            mov cl, [BASE_NUMBER_TRIANGLE_SQUARE]
+                mov cl, [Number]
 
 
-            ret
+                ret
         Print_Square ENDP
 
         ; IO conversion procedures:
         Ascii2DecInput PROC
                 ; Gathering input 
-                mov cx, 0       ; Count digits
-                mov bx, 10  
+                mov si, 0       ; Save the sum
+                mov bx, 10      ; for multiplication
 
-            read_loop:
-            mov ah,01H
-            int 21H
-            cmp ah,'.' ;the request is to finish the input with .
-            je end_loop ; if its '.' we finish to read
-            sub al,30h ;with we got '5' we convert it to the number 5 with sub 30H in ascii
-            mov cl,al ; save the number we got (not the char)
-            
+                read_loop:
+                        mov ah,01H
+                        int 21H
+                        cmp al,'.' ;the request is to finish the input with .
+                        je end_loop ; if its '.' we finish to read
 
+                        sub al,30h ;with we got '5' we convert it to the number 5 with sub 30H in ascii
+                        mov cl,al ; save the number we got (not the char)
+                        mov ch,0 ; we dont want to take trash from CH so we clear it
 
-            mul bx
-            add ax,cx
-            jmp read_loop
+                        mov ax,si ;copy the number we got from si to ax
+                        mul bx  ;mul ax=bx*ax
+                        add ax,cx ;add ax=(ax*bx)+cx
+                        mov si,ax ; si=(ax*bx)+cx
+                        
+                        jmp read_loop           
+        
 
-
-            
-
-
-
-
-
-
-
-
-
-
-
-
-        end_loop:
-            ret
-            Ascii2DecInput ENDP
+        
+                end_loop:
+                        mov ax,si       
+                        ret
+        Ascii2DecInput ENDP
 
 
 
