@@ -9,9 +9,7 @@ data segment
         Number db 4, ?, 4 dup('$') ; Buffer for 3 digits + Carriage Return
         wrong_input1_msg db 13, 10, 'The number has to be greater than 2 and smaller than 255...', 13, 10, '$'
 
-        ; ORG 100H ;for what we need this?
-
-
+        ORG 100H
         String1 db 101, ?, 101 dup('$') ; Buffer for 100 chars + Carriage Return, initialized to DOS's - '$' delimiter.
 
 
@@ -20,7 +18,6 @@ data segment
         result2 db 'not prime', 13, 10, '$'
 
         result db 13, 10, 'Your result is: $'
-        BASE_NUMBER_TRIANGLE_SQUARE DW ? ;To save the number we converted from HEX to BASE 10
 data ends
 
 code segment
@@ -46,16 +43,15 @@ main:
                 cmp ax, 3                       ; relooping if ax < N
                 ja failed_start_eval
 
-
-                cmp ax,1
-                je input1evaluation
+                
+            
 
 
                         ; taking and checking 'Number' in a loop:
                         input1evaluation:
 
                             ; Printing message1:
-                            mov dx, offset  proc_1_msg  ; 1. Point DX to the memory address of the message
+                            mov dx, offset start_loop_msg   ; 1. Point DX to the memory address of the message
                             mov ah, 9                       ; 2. Tell DOS we want to use the "Print String" function
                             int 21h                         ; 3. Trigger the DOS interrupt to execute that function
 
@@ -65,15 +61,13 @@ main:
                             jb failed_eval1
 
                             cmp ax, 254                     ; relooping if 254 < N
-                            ja failed_eval1
-                            mov [BASE_NUMBER_TRIANGLE_SQUARE],AX ; Save the number we got from the proc Ascli2DecInput so AX will be free.
-                            ; jmp 
+                            jb failed_eval1
 
                             failed_eval1:
                                 mov dx, offset wrong_input1_msg   
                                 mov ah, 9                       
                                 int 21h
-                                jmp input1evaluation
+                                loop input1evaluation
                 
                             ; push ax                             ; Pushing the first Ascii2DecInput's output (AX) to the stack
 
@@ -95,7 +89,7 @@ main:
                 mov dx, offset wrong_start_msg   
                 mov ah, 9                       
                 int 21h
-                jmp start_input_evaluation
+                loop start_input_evaluation
 
         ; Exit to DOS
         mov ax,4c00h                
@@ -104,115 +98,67 @@ main:
 
         ; printing a right-angled Isosceles triangle (of length-N):
         Print_Triangle PROC
-            mov cx, [BASE_NUMBER_TRIANGLE_SQUARE]
-        
+                mov cx, [Number]
 
-            ret    
-        Print_Triangle ENDP
 
 
         ; print a square (of length-N):  
         Print_Square PROC
-            mov cl, [BASE_NUMBER_TRIANGLE_SQUARE]
+                mov cx, [Number]
 
 
-            ret
-        Print_Square ENDP
 
         ; IO conversion procedures:
         Ascii2DecInput PROC
                 ; Gathering input 
+                mov ah, 0Ah
+                mov dx, offset buffer
+                int 21h
+
+                ; Conversion Setup 
+                lea si, buffer + 2       ; SI points to first typed char
+                mov cl, [buffer + 1]     ; CX = number of chars typed
+                mov ch, 0
+                mov ax, 0                ; AX will hold our final number
+                mov bx, 10               ; Multiplier
+
+                jcxz end_convert         ; (Jump to end) if CX is 0 else (continue)        
+
+        convert_loop:
+                mov dx, 0                ; Clear DX for multiplication
+                mul bx                   ; AX = AX * 10
+                
+                mov dl, [si]             ; Get next ASCII char
+                sub dl, 30h              ; Convert to digit
+                add ax, dx               ; Add digit to total
+                
+                inc si                   ; Move to next char
+                loop convert_loop
+        end_convert:
+                ret
+        Ascii2DecInput ENDP
+
+
+
+        Dec2AsciiOutput PROC
+                ; This is a basic routine to print AX as a decimal number
                 mov cx, 0       ; Count digits
-                mov bx, 10  
+                mov bx, 10      ; Divider
 
-            read_loop:
-            mov ah,01H
-            int 21H
-            cmp ah,'.' ;the request is to finish the input with .
-            je end_loop ; if its '.' we finish to read
-            sub al,30h ;with we got '5' we convert it to the number 5 with sub 30H in ascii
-            mov cl,al ; save the number we got (not the char)
-            
+        divide_loop:
+                mov dx, 0       ; Zeroing dx (the previous iteration's remainer)
+                div bx          ; AX / 10, Remainder in DX
+                push dx         ; Push the digit (remainder) onto the stack
+                inc cx          ; Increment digit count
+                test ax, ax     ; Is AX 0?
+                jnz divide_loop ; If (AX!=0) keep looping, else continue
 
-
-            mul bx
-            add ax,cx
-            jmp read_loop
-
-
-            
-
-
-
-
-
-
-
-
-
-
-
-
-        end_loop:
-            ret
-            Ascii2DecInput ENDP
-
-
-
-
-
-
-
-
-
-        ;         mov ah, 0Ah
-        ;         mov dx, offset Number
-        ;         int 21h
-
-        ;         ; Conversion Setup 
-        ;         lea si, Number + 2       ; SI points to first typed char
-        ;         mov cl, [Number + 1]     ; CX = number of chars typed
-        ;         mov ch, 0
-        ;         mov ax, 0                ; AX will hold our final number
-        ;         mov bx, 10               ; Multiplier
-
-        ;         jcxz end_convert         ; (Jump to end) if CX is 0 else (continue)        
-
-        ; convert_loop:
-        ;         mov dx, 0                ; Clear DX for multiplication
-        ;         mul bx                   ; AX = AX * 10
-                
-        ;         mov dl, [si]             ; Get next ASCII char
-        ;         sub dl, 30h              ; Convert to digit
-        ;         add ax, dx               ; Add digit to total
-                
-        ;         inc si                   ; Move to next char
-        ;         loop convert_loop
-        ; end_convert:
-        ;         ret
-        ; Ascii2DecInput ENDP
-
-
-
-        ; Dec2AsciiOutput PROC
-        ;         ; This is a basic routine to print AX as a decimal number
-        ;         mov cx, 0       ; Count digits
-        ;         mov bx, 10      ; Divider
-
-        ; divide_loop:
-        ;         mov dx, 0       ; Zeroing dx (the previous iteration's remainer)
-        ;         div bx          ; AX / 10, Remainder in DX
-        ;         push dx         ; Push the digit (remainder) onto the stack
-        ;         inc cx          ; Increment digit count
-        ;         test ax, ax     ; Is AX 0?
-        ;         jnz divide_loop ; If (AX!=0) keep looping, else continue
-
-        ; print_loop:
-        ;         pop dx          ; Pop the last digit saved on the stack 
-        ;         add dl, 30h     ; Convert to ASCII
-        ;         mov ah, 02h     ; DOS print character function
-        ;         int 21h
-        ;         loop print_loop
+        print_loop:
+                pop dx          ; Pop the last digit saved on the stack 
+                add dl, 30h     ; Convert to ASCII
+                mov ah, 02h     ; DOS print character function
+                int 21h
+                loop print_loop
                 ret
         Dec2AsciiOutput ENDP
 
