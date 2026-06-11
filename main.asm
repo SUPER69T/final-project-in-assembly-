@@ -278,7 +278,7 @@ main:
 
 
 
-
+        ; Ascii2DecInput PROC
         ;         mov ah, 0Ah
         ;         mov dx, offset Number
         ;         int 21h
@@ -329,6 +329,6 @@ main:
         ;         loop print_loop
         ;         ret
         ; Dec2AsciiOutput ENDP
-
+        
 code ends
 end main
