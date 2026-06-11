@@ -20,9 +20,6 @@ data segment
         result2 db 'not prime', 13, 10, '$'
         result db 13, 10, 'Your result is: $'
 
-        newline db 0Dh, 0Ah                                             ; for convenient newline printing.
-        triangle_string_buffer db 255 dup('@'), '$'             ; a string of length 'Number' of the character '@'.
-        square_string_buffer db 255 dup('*'), '$'               ; a string of length 'Number' of the character '*'.
 
 data ends
 
@@ -104,10 +101,12 @@ main:
 
                         Square:
                         call Print_Square
-                        jmp start_input_evaluation             
-                Triangle: 
-                        call Print_Triangle
                         jmp start_input_evaluation
+
+                        Triangle: 
+                                call Print_Triangle
+                                jmp start_input_evaluation
+
                 input2evaluation:
 
 
@@ -167,6 +166,7 @@ main:
                      ret  
         check_for_prime ENDP
 
+
         ; printing a right-angled Isosceles triangle (of length-N):
         Print_Triangle PROC
                 ; ---example---:
@@ -178,25 +178,25 @@ main:
                 ;@@@@@       outter: cx = 1, inner: cx = 5
                 ; outter: cx = 0
                 
-                mov cx, 0                                       ; initiating the iterator to 0 (runs from 0 to 255).
+                XOR cx, cx                                       ; initiating the iterator to 0 (runs from 0 to 255).
                 
                 print_line:
                         ; ---printing a word of size CX (0 < CX <= Number)---:
-                        mov ah, 40h                             ; 40h std writing/reading DOS.
-                        mov bx, 1                               ; File handle 1 = standard output (screen).
-                        inc cx                                  ; CX specifies number of chars printed from the buffer.  
-                        mov dx, offset triangle_string_buffer   ; Pointing DX to the buffer.
-                        int 21h
+                        cl = 
+                        MOV AH, 02h       
+                        MOV DL, '*'       
+                        INT 21h 
+                        
                         ; -----
 
                         ; ---printing a newline---:
-                        push cx                                 ; saving CX on the stack, every 40h function uses the CX register. 
-                        mov ah, 40h                             
-                        mov bx, 1                               
-                        mov cx, 2                               ; 2 characters (CR+LF)              
-                        mov dx, offset newline                  
-                        int 21h
-                        pop cx
+                        MOV AH, 02h       
+                        MOV DL, 0Dh       ; 0Dh=CR (carriage return)
+                        INT 21h           
+
+                        MOV AH, 02h       
+                        MOV DL, 0Ah       ; 0Ah=LF (line feed)
+                        INT 21h          
                         ; -----
                         
                         ; checking the loop logic:
