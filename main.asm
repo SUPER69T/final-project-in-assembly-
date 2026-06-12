@@ -1,8 +1,8 @@
 ; Leon Subbotsky - 323862524, Bar Cohen - 324268309.
 data segment
         ; ORG 100H ;for what we need this?####################3
-        start_loop_msg db 'Please choose one of the following options: ', 13, 10, '1. Prime number checker', 13, 10, '2. . Caesars shift coder', 13, 10, '3. Exit', 13, 10, '$'
-        wrong_start_msg db 13, 10, 'Invalid input...', 13, 10, '$'
+        start_loop_msg db 'Please choose one of the following options: ', 13, 10, '1. Prime number checker', 13, 10, '2. Caesars shift coder', 13, 10, '3. Exit', 13, 10, '$'
+        wrong_msg db 13, 10, 'Invalid input...', 13, 10, '$'
 
         proc_1_msg db 13, 10, 'Enter a positive integer number N (255>N>2):', 13, 10, '$'
         proc_2_msg db 13, 10, 'Enter one decimal digit (between 2 to 9):', 13, 10, '$'
@@ -14,7 +14,7 @@ data segment
         caeser_offset_msg db 13, 10, ' Enter one decimal digit (between 2 to 9):', 13, 10, '$'
 
 
-        String1 db 101,dup('$') ; Buffer for 100 chars + Carriage Return, initialized to DOS's - '$' delimiter.
+        String1 db 101 dup('$') ; Buffer for 100 chars + Carriage Return, initialized to DOS's - '$' delimiter.
         String2 db 101 dup('$') ; Buffer for the Caesar shifted string, initialized to DOS's - '$' delimiter.
 
         ; Number of type word, and using the pointer: [Number]
@@ -48,13 +48,13 @@ main:
 
 
                 ; SWITCH-CASE STATEMENT:
-                cmp ax,'1'
+                cmp al,'1'
                         je input1evaluation
 
-                cmp ax,'2'
+                cmp al,'2'
                         je input2evaluation
 
-                cmp ax,'3'
+                cmp al,'3'
                         je quit_program
 
                 jmp failed_start_eval
@@ -76,6 +76,7 @@ main:
 
                         cmp ax, 254                     ; relooping if 254 < N
                         ja failed_eval1
+
                         jmp valid
                         
 
@@ -118,23 +119,27 @@ main:
                         jmp read_string ; if its not '.' we keep reading chars and saving them in the string buffer
 
                 end_read_string:
-                       mov byte ptr [di], '$' ; End the string with a '$' for DOS printing
-                       mov dx, offset caeser_offset_msg ;print message to ask for offset input
-                       mov ah, 9
-                       int 21h
+                        mov byte ptr [di], '$' ; End the string with a '$' for DOS printing
+                        mov dx, offset caeser_offset_msg ;print message to ask for offset input
+                        mov ah, 9
+                        int 21h
 
-                       mov ah, 01h ; read the offset input
-                       int 21h
-                       sub al, 30h ; convert from ASCII to number
-                       mov [shift_offset], al ; save the offset for the caeser shift in shift_offset
-                       ; Now we have the string in String1 and the offset in shift_offset, we can perform the Caesar shift:
-                
-                       call Caesar_shift ; perform the Caesar shift, the result will be saved in String2
-                       mov dx, offset String2 ; print the shifted string
-                       mov ah, 9
-                       int 21h
+                        mov ah, 01h ; read the offset input
+                        int 21h
+                        sub al, 30h ; convert from ASCII to number
+                        mov [shift_offset], al ; save the offset for the caeser shift in shift_offset
+                        ; Now we have the string in String1 and the offset in shift_offset, we can perform the Caesar shift:
 
-                       jmp start_input_evaluation 
+                        call NewLine
+                        
+                        call Caesar_shift ; perform the Caesar shift, the result will be saved in String2
+                        mov dx, offset String2 ; print the shifted string
+                        mov ah, 9
+                        int 21h
+
+                        call NewLine
+
+                        jmp start_input_evaluation 
 
 
                 quit_program:
@@ -144,7 +149,7 @@ main:
 
 
                 failed_start_eval:
-                        mov dx, offset wrong_start_msg   
+                        mov dx, offset wrong_msg   
                         mov ah, 9                       
                         int 21h
                         jmp start_input_evaluation
@@ -209,21 +214,13 @@ main:
                                 loop inner_loop         ; breaking when CX=0
                         ; -----
 
-                        ; ---printing a newline---:
-                        MOV AH, 02h       
-                        MOV DL, 0Dh                     ; 0Dh=CR (carriage return)
-                        INT 21h           
-
-                        MOV AH, 02h       
-                        MOV DL, 0Ah                     ; 0Ah=LF (line feed)
-                        INT 21h          
-                        ; -----                        
+                        call NewLine                       
 
                         pop cx
                         ; outer loop condition:
                         inc cx                          ; CX+=1
                         cmp cx, [Number]        
-                        jle print_line          ; Continue looping if triangle_string_buffer<=cx, otherwise return.
+                        jle print_line          ; Continue looping if cx<=Number, otherwise return.
         
                         ret
         Print_Triangle ENDP
@@ -231,36 +228,29 @@ main:
 
         ; print a square (of length-N):  
         Print_Square PROC
-                mov di, [Number]        ; DI acts as our outter-loop's iterator =>
+                xor di, di              ; DI acts as our outter-loop's iterator =>
                 ; this avoids excessive use of push/pop operations on the CX register. 
 
-                print_line:
-                        ; checking for end of outter-loop:
-                        cmp di, 0               
-                        je end_loop                             ; Exit the loop if DI == 0.
+                print_line2:
+                        ; checking for end of outter-loop:   
+                        cmp di, [Number]          
+                        je end_loop2                             ; Exit the loop if DI == Number.
+                        mov cx, [Number]
 
                         ; ---printing a word of size CX (CX = Number)---:
-                        inner_loop:
+                        inner_loop2:
                                 MOV AH, 02h       
                                 MOV DL, '*'       
                                 INT 21h 
-                                loop inner_loop 
+                                loop inner_loop2 
                         ; -----
 
-                        ; ---printing a newline---:
-                        MOV AH, 02h       
-                        MOV DL, 0Dh                     ; 0Dh=CR (carriage return)
-                        INT 21h           
+                        call NewLine 
 
-                        MOV AH, 02h       
-                        MOV DL, 0Ah                     ; 0Ah=LF (line feed)
-                        INT 21h          
-                        ; -----  
+                        inc di                       
+                        jmp print_line2
 
-                        dec di                                            
-                        jmp print_line                          
-                
-                end_loop:
+                end_loop2:
                         ret
         Print_Square ENDP
 
@@ -310,6 +300,7 @@ main:
                         cmp al,'.' ;the request is to finish the input with .
                         je end_loop ; if its '.' we finish to read
 
+                        
                         sub al,30h ;with we got '5' we convert it to the number 5 with sub 30H in ascii
                         mov cl,al ; save the number we got (not the char)
                         mov ch,0 ; we dont want to take trash from CH so we clear it
@@ -326,6 +317,27 @@ main:
                         ret
         Ascii2DecInput ENDP
 
-      
+        
+        NewLine PROC
+        ; ---printing a newline---:
+                ; pushing:
+                push ah
+                push dl
+                ;---------
+                MOV AH, 02h       
+                MOV DL, 0Dh                     ; 0Dh=CR (carriage return)
+                INT 21h           
+
+                MOV AH, 02h       
+                MOV DL, 0Ah                     ; 0Ah=LF (line feed)
+                INT 21h  
+                ;---------
+                ; popping:
+                pop dl
+                pop ah
+                ;---------
+        ; ------------------------ 
+        NewLine ENDP
+
 code ends
 end main
