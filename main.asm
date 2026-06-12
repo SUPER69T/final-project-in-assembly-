@@ -1,5 +1,6 @@
 ; Leon Subbotsky - 323862524, Bar Cohen - 324268309.
 data segment
+        ; ORG 100H ;for what we need this?####################3
         start_loop_msg db 'Please choose one of the following options: ', 13, 10, '1. Prime number checker', 13, 10, '2. . Caesars shift coder', 13, 10, '3. Exit', 13, 10, '$'
         wrong_start_msg db 13, 10, 'Invalid input...', 13, 10, '$'
 
@@ -8,8 +9,8 @@ data segment
 
         Number dw ? ; To save the number we converted from HEX to BASE 10
         wrong_input1_msg db 13, 10, 'The number has to be greater than 2 and smaller than 255...', 13, 10, '$'
-
-        ; ORG 100H ;for what we need this?
+        caeser_shift_msg db 13, 10, 'Type a string (only small characters in English):', 13, 10, '$'
+        caeser_offset_msg db 13, 10, ' Enter one decimal digit (between 2 to 9):', 13, 10, '$'
 
 
         String1 db 101, ?, 101 dup('$') ; Buffer for 100 chars + Carriage Return, initialized to DOS's - '$' delimiter.
@@ -20,6 +21,7 @@ data segment
         result2 db 'not prime', 13, 10, '$'
         result db 13, 10, 'Your result is: $'
 
+        shift_offset db 0 ; to save the offset for the caeser shift
 
 data ends
 
@@ -107,17 +109,45 @@ main:
                                 call Print_Triangle
                                 jmp start_input_evaluation
 
+
                 input2evaluation:
-
-
-
-
-                
+                        mov dx , offset caeser_shift_msg ;print message to ask for string input
+                        mov ah, 9
+                        int 21h
                         
+                        mov di,offset String1 ;pointer for the string input, we will save the string in String1
+                read_string:
+                        mov ah, 01h
+                        int 21h
+                        cmp al,'.' ;the request is to finish the input with '.'.
+                        je end_read_string ; if its '.' we finish to read
+
+                        mov [di],al ; save the char we got in the string buffer
+                        inc di ; move the pointer to the next char in the string buffer
+                        jmp read_string ; if its not '.' we keep reading chars and saving them in the string buffer
+
+                end_read_string:
+                       mov byte ptr [di], '$' ; End the string with a '$' for DOS printing
+                       mov dx, offset caeser_offset_msg ;print message to ask for offset input
+                       mov ah, 9
+                       int 21h
+
+                       mov ah, 01h ; read the offset input
+                       int 21h
+                       sub al, 30h ; convert from ASCII to number
+                       mov [shift_offset], al ; save the offset for the caeser shift in shift_offset
+                       ; Now we have the string in String1 and the offset in shift_offset, we can perform the Caesar shift:
                 
+                       call Caesar_shift ; perform the Caesar shift, the result will be saved in String2
+                       mov dx, offset String2 ; print the shifted string
+                       mov ah, 9
+                       int 21h
+
+                       jmp start_input_evaluation 
+
 
                 quit_program:
-                        mov ax,4cH  
+                        mov ah,4cH  
                         int 21H
                
 
@@ -132,13 +162,13 @@ main:
                 jmp start_input_evaluation
 
         ; Exit to DOS
-        mov ax, 4c00h                
+        mov ah, 4c00h                
         int 21h     
 
 
         check_for_prime PROC 
                mov cx, [Number]
-               DEC cx 
+               SHR cx, 1 ; we only need to check for divisors up to N/2, so we divide cx by 2.
         
                start_loop:
                 cmp cx,1
@@ -178,16 +208,21 @@ main:
                 ;@@@@@       outter: cx = 1, inner: cx = 5
                 ; outter: cx = 0
                 
-                XOR cx, cx                                       ; initiating the iterator to 0 (runs from 0 to 255).
+                XOR cx, cx                                      ; initiating the iterator to 1 (runs from 1 to Number).
                 
                 print_line:
+                        push cx
                         ; ---printing a word of size CX (0 < CX <= Number)---:
-                        cl = 
-                        MOV AH, 02h       
-                        MOV DL, '*'       
-                        INT 21h 
-                        
+                        inner_loop:
+                                MOV AH, 02h       
+                                MOV DL, '@'       
+                                INT 21h 
+
+                                ; inner loop's condition:
+                                cmp cx, 0                               ; breaking when CX=0
+                                jne inner_loop
                         ; -----
+                        pop cx
 
                         ; ---printing a newline---:
                         MOV AH, 02h       
@@ -198,10 +233,14 @@ main:
                         MOV DL, 0Ah       ; 0Ah=LF (line feed)
                         INT 21h          
                         ; -----
-                        
-                        ; checking the loop logic:
-                        cmp cx, [Number]                                    
+                
+                ; outter loop's condition:
+                condition: 
+                        inc cx                                  ; CX+=1
+                        cmp cx, [Number]                                       
                         jne print_line                          ; Continue looping if cx!=triangle_string_buffer, otherwise return.
+                
+                end_loop:
                         ret
                 
         Print_Triangle ENDP
@@ -241,6 +280,40 @@ main:
 
         Print_Square ENDP
 
+        Caesar_shift PROC
+                
+
+                mov si, offset String1 ; SI points to the current char in String1
+                mov di, offset String2 ; DI points to the current char in String2
+
+                shift_loop:
+                        mov al, [si] ; Get the current char from String1
+                        cmp al, '$'  ; Check if it's the end of the string
+                        je end_shift_loop ; If it is, we are done
+
+                        ; Check if the character is a lowercase letter (between 'a' and 'z')
+                        cmp al, 'a'
+                        jb store_char ; If it's less than 'a', we won't shift it, just store it as is
+                        cmp al, 'z'
+                        ja store_char ; If it's greater than 'z', we won't shift it, just store it as is
+
+                        add al, [shift_offset] ; Shift the character by the offset
+                        cmp al, 'z'
+                        jbe store_char ; If the shifted character is still a lowercase letter, store it
+                        sub al, 26 ; If it goes past 'z', wrap around to the beginning
+
+                store_char:
+                        mov [di], al ; Store the character in String2
+                        inc di ; Increment the DI pointer to the next position in String2
+                        inc si ; Move to the next char in String1
+                        jmp shift_loop ; Repeat the loop for the next character
+
+
+                end_shift_loop:
+                        mov byte ptr [di], '$' ; End the shifted string with a '$' for DOS printing
+                        ret
+
+        Caesar_shift ENDP
         ; IO conversion procedures:
         Ascii2DecInput PROC
                 ; Gathering input 
