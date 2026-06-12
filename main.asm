@@ -1,3 +1,6 @@
+stack_seg segment stack
+        dw 100h dup(?) ; הקצאת זיכרון רשמית של 256 מילים עבור המחסנית
+stack_seg ends
 data segment
         start_loop_msg db 'Please choose one of the following options: ', 13, 10, '1. Prime number checker', 13, 10, '2. Caesars shift coder', 13, 10, '3. Exit', 13, 10, '$'
         exit_msg db 13, 10, 'Goodbye :)...', 13, 10, '$'
@@ -25,8 +28,9 @@ data segment
 
 data ends
 
+
 code segment
-        assume cs:code,ds:data
+        assume cs:code,ds:data,ss:stack_seg
 main: 
         ; Initialize Segment
         mov ax, seg data
