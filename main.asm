@@ -9,12 +9,13 @@ data segment
 
         Number dw ? ; To save the number we converted from HEX to BASE 10
         wrong_input1_msg db 13, 10, 'The number has to be greater than 2 and smaller than 255...', 13, 10, '$'
+       
         caeser_shift_msg db 13, 10, 'Type a string (only small characters in English):', 13, 10, '$'
         caeser_offset_msg db 13, 10, ' Enter one decimal digit (between 2 to 9):', 13, 10, '$'
 
 
-        String1 db 101, ?, 101 dup('$') ; Buffer for 100 chars + Carriage Return, initialized to DOS's - '$' delimiter.
-
+        String1 db 101,dup('$') ; Buffer for 100 chars + Carriage Return, initialized to DOS's - '$' delimiter.
+        String2 db 101 dup('$') ; Buffer for the Caesar shifted string, initialized to DOS's - '$' delimiter.
 
         ; Number of type word, and using the pointer: [Number]
         result1 db 'prime', 13, 10, '$'
@@ -46,25 +47,15 @@ main:
 
 
 
-                ; call Ascii2DecInput             ; taking input.
-                
-                ; cmp ax, '1'                       ; relooping if ax < 1
-                ; jb failed_start_eval
-
-                ; cmp ax, '3'                       ; relooping if ax < N
-                ; ja failed_start_eval
-
-
-
-
+                ; SWITCH-CASE STATEMENT:
                 cmp ax,'1'
-                je input1evaluation
+                        je input1evaluation
 
                 cmp ax,'2'
-                  je input2evaluation
+                        je input2evaluation
 
                 cmp ax,'3'
-                  je quit_program
+                        je quit_program
 
                 jmp failed_start_eval
 
@@ -95,7 +86,7 @@ main:
                         int 21h
                         jmp input1evaluation
         
-                        ; push ax
+                
                         valid:                             ; Pushing the first Ascii2DecInput's output (AX) to the stack
                         call check_for_prime
                         cmp al,1
@@ -147,23 +138,20 @@ main:
 
 
                 quit_program:
-                        mov ah,4cH  
+                        mov ah,4ch
                         int 21H
                
 
 
+                failed_start_eval:
+                        mov dx, offset wrong_start_msg   
+                        mov ah, 9                       
+                        int 21h
+                        jmp start_input_evaluation
 
-
-
-        failed_start_eval:
-                mov dx, offset wrong_start_msg   
-                mov ah, 9                       
-                int 21h
-                jmp start_input_evaluation
-
-        ; Exit to DOS
-        mov ah, 4c00h                
-        int 21h     
+                ; Exit to DOS
+                mov ah, 4ch                
+                int 21h     
 
 
         check_for_prime PROC 
@@ -206,49 +194,44 @@ main:
                 ;@@@         outter: cx = 3, inner: cx = 3
                 ;@@@@        outter: cx = 2, inner: cx = 4
                 ;@@@@@       outter: cx = 1, inner: cx = 5
-                ; outter: cx = 0
-                
-                XOR cx, cx                                      ; initiating the iterator to 1 (runs from 1 to Number).
-                
+                ; outter: cx = 0                                                    
+                mov cx, 1       ; initiating the iterator to 1 (runs from 1 to Number).
+
                 print_line:
                         push cx
+
                         ; ---printing a word of size CX (0 < CX <= Number)---:
                         inner_loop:
                                 MOV AH, 02h       
                                 MOV DL, '@'       
                                 INT 21h 
 
-                                ; inner loop's condition:
-                                cmp cx, 0                               ; breaking when CX=0
-                                jne inner_loop
+                                loop inner_loop         ; breaking when CX=0
                         ; -----
-                        pop cx
 
                         ; ---printing a newline---:
                         MOV AH, 02h       
-                        MOV DL, 0Dh       ; 0Dh=CR (carriage return)
+                        MOV DL, 0Dh                     ; 0Dh=CR (carriage return)
                         INT 21h           
 
                         MOV AH, 02h       
-                        MOV DL, 0Ah       ; 0Ah=LF (line feed)
+                        MOV DL, 0Ah                     ; 0Ah=LF (line feed)
                         INT 21h          
-                        ; -----
-                
-                ; outter loop's condition:
-                condition: 
-                        inc cx                                  ; CX+=1
-                        cmp cx, [Number]                                       
-                        jne print_line                          ; Continue looping if cx!=triangle_string_buffer, otherwise return.
-                
-                end_loop:
+                        ; -----                        
+
+                        pop cx
+                        ; outer loop condition:
+                        inc cx                          ; CX+=1
+                        cmp cx, [Number]        
+                        jle print_line          ; Continue looping if triangle_string_buffer<=cx, otherwise return.
+        
                         ret
-                
         Print_Triangle ENDP
 
 
         ; print a square (of length-N):  
         Print_Square PROC
-                mov di, [Number]                                ; DI acts as our outter-loop's iterator =>
+                mov di, [Number]        ; DI acts as our outter-loop's iterator =>
                 ; this avoids excessive use of push/pop operations on the CX register. 
 
                 print_line:
@@ -257,32 +240,33 @@ main:
                         je end_loop                             ; Exit the loop if DI == 0.
 
                         ; ---printing a word of size CX (CX = Number)---:
-                        mov ah, 40h                             
-                        mov bx, 1      
-                        mov cx, [Number]                        ; cx = Number.                                              
-                        mov dx, offset square_string_buffer   
-                        int 21h 
+                        inner_loop:
+                                MOV AH, 02h       
+                                MOV DL, '*'       
+                                INT 21h 
+                                loop inner_loop 
                         ; -----
 
                         ; ---printing a newline---:
-                        mov ah, 40h                             
-                        mov bx, 1                               
-                        mov cx, 2                               
-                        mov dx, offset newline                  
-                        int 21h
-                        ; -----
+                        MOV AH, 02h       
+                        MOV DL, 0Dh                     ; 0Dh=CR (carriage return)
+                        INT 21h           
+
+                        MOV AH, 02h       
+                        MOV DL, 0Ah                     ; 0Ah=LF (line feed)
+                        INT 21h          
+                        ; -----  
 
                         dec di                                            
                         jmp print_line                          
                 
                 end_loop:
                         ret
-
         Print_Square ENDP
 
-        Caesar_shift PROC
-                
 
+
+        Caesar_shift PROC
                 mov si, offset String1 ; SI points to the current char in String1
                 mov di, offset String2 ; DI points to the current char in String2
 
@@ -308,12 +292,12 @@ main:
                         inc si ; Move to the next char in String1
                         jmp shift_loop ; Repeat the loop for the next character
 
-
                 end_shift_loop:
                         mov byte ptr [di], '$' ; End the shifted string with a '$' for DOS printing
                         ret
-
         Caesar_shift ENDP
+
+
         ; IO conversion procedures:
         Ascii2DecInput PROC
                 ; Gathering input 
@@ -337,71 +321,11 @@ main:
                         
                         jmp read_loop           
         
-
-        
                 end_loop:
                         mov ax,si       
                         ret
         Ascii2DecInput ENDP
 
-
-
-
-
-
-
-
-        ; Ascii2DecInput PROC
-        ;         mov ah, 0Ah
-        ;         mov dx, offset Number
-        ;         int 21h
-
-        ;         ; Conversion Setup 
-        ;         lea si, [Number] + 2       ; SI points to first typed char
-        ;         mov cl, [Number + 1]     ; CX = number of chars typed
-        ;         mov ch, 0
-        ;         mov ax, 0                ; AX will hold our final number
-        ;         mov bx, 10               ; Multiplier
-
-        ;         jcxz end_convert         ; (Jump to end) if CX is 0 else (continue)        
-
-        ; convert_loop:
-        ;         mov dx, 0                ; Clear DX for multiplication
-        ;         mul bx                   ; AX = AX * 10
-                
-        ;         mov dl, [si]             ; Get next ASCII char
-        ;         sub dl, 30h              ; Convert to digit
-        ;         add ax, dx               ; Add digit to total
-                
-        ;         inc si                   ; Move to next char
-        ;         loop convert_loop
-        ; end_convert:
-        ;         ret
-        ; Ascii2DecInput ENDP
-
-
-
-        ; Dec2AsciiOutput PROC
-        ;         ; This is a basic routine to print AX as a decimal number
-        ;         mov cx, 0       ; Count digits
-        ;         mov bx, 10      ; Divider
-
-        ; divide_loop:
-        ;         mov dx, 0       ; Zeroing dx (the previous iteration's remainer)
-        ;         div bx          ; AX / 10, Remainder in DX
-        ;         push dx         ; Push the digit (remainder) onto the stack
-        ;         inc cx          ; Increment digit count
-        ;         test ax, ax     ; Is AX 0?
-        ;         jnz divide_loop ; If (AX!=0) keep looping, else continue
-
-        ; print_loop:
-        ;         pop dx          ; Pop the last digit saved on the stack 
-        ;         add dl, 30h     ; Convert to ASCII
-        ;         mov ah, 02h     ; DOS print character function
-        ;         int 21h
-        ;         loop print_loop
-        ;         ret
-        ; Dec2AsciiOutput ENDP
-        
+      
 code ends
 end main
