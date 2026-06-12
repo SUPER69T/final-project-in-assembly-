@@ -1,7 +1,7 @@
 ; Leon Subbotsky - 323862524, Bar Cohen - 324268309.
 data segment
-        ; ORG 100H ;for what we need this?####################3
         start_loop_msg db 'Please choose one of the following options: ', 13, 10, '1. Prime number checker', 13, 10, '2. Caesars shift coder', 13, 10, '3. Exit', 13, 10, '$'
+        exit_msg db 13, 10, 'Goodbye :)...', 13, 10, '$'
         wrong_msg db 13, 10, 'Invalid input...', 13, 10, '$'
 
         proc_1_msg db 13, 10, 'Enter a positive integer number N (255>N>2):', 13, 10, '$'
@@ -143,6 +143,9 @@ main:
 
 
                 quit_program:
+                        mov dx, offset exit_msg  
+                        mov ah,9
+                        int 21H
                         mov ah,4ch
                         int 21H
                
@@ -161,14 +164,14 @@ main:
 
         check_for_prime PROC 
                mov cx, [Number]
-               SHR cx, 1 ; we only need to check for divisors up to N/2, so we divide cx by 2.
+               SHR cx, 1        ; we only need to check for divisors up to N/2, so we divide cx by 2.
         
                start_loop:
                 cmp cx,1
                 jbe prime 
                 
                 mov ax, [Number]
-                mov dx,0 ;dx will hold the reminder
+                mov dx,0        ;dx will hold the reminder
                 div cx
 
                 cmp dx,0
@@ -230,12 +233,14 @@ main:
         Print_Square PROC
                 xor di, di              ; DI acts as our outter-loop's iterator =>
                 ; this avoids excessive use of push/pop operations on the CX register. 
+                mov bx, [Number]        ; loading 'Number' once from memory and then comparing =>
+                ; the iterator (di) to the register bx without additional mem-fetching (quicker).
 
                 print_line2:
                         ; checking for end of outter-loop:   
-                        cmp di, [Number]          
+                        cmp di, bx        
                         je end_loop2                             ; Exit the loop if DI == Number.
-                        mov cx, [Number]
+                        mov cx, bx
 
                         ; ---printing a word of size CX (CX = Number)---:
                         inner_loop2:
@@ -321,8 +326,8 @@ main:
         NewLine PROC
         ; ---printing a newline---:
                 ; pushing:
-                push ah
-                push dl
+                push ax
+                push dx
                 ;---------
                 MOV AH, 02h       
                 MOV DL, 0Dh                     ; 0Dh=CR (carriage return)
@@ -333,9 +338,10 @@ main:
                 INT 21h  
                 ;---------
                 ; popping:
-                pop dl
-                pop ah
+                pop dx
+                pop ax
                 ;---------
+                ret
         ; ------------------------ 
         NewLine ENDP
 
