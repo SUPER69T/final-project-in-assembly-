@@ -45,7 +45,7 @@ main:
                 int 21H
 
 
-                mov ah,01H                       ; 2. Tell DOS we want to use the "Print String" function
+                mov ah,01H                      ; 2. Tell DOS we want to use the "Print String" function
                 int 21h                         ; 3. Trigger the DOS interrupt to execute that function
 
 
@@ -68,7 +68,7 @@ main:
                 input1evaluation:
 
                         ; Printing message1:
-                        mov dx, offset  proc_1_msg  ; 1. Point DX to the memory address of the message
+                        mov dx, offset  proc_1_msg      ; 1. Point DX to the memory address of the message
                         mov ah, 9                       ; 2. Tell DOS we want to use the "Print String" function
                         int 21h                         ; 3. Trigger the DOS interrupt to execute that function
 
@@ -91,7 +91,7 @@ main:
                         jmp input1evaluation
         
                 
-                        valid:                             ; Pushing the first Ascii2DecInput's output (AX) to the stack
+                        valid:                          ; Pushing the first Ascii2DecInput's output (AX) to the stack
                         call check_for_prime
                         cmp al,1
                         je Triangle
@@ -106,37 +106,37 @@ main:
 
 
                 input2evaluation:
-                        mov dx , offset caeser_shift_msg ;print message to ask for string input
+                        mov dx , offset caeser_shift_msg        ;print message to ask for string input
                         mov ah, 9
                         int 21h
                         
-                        mov di,offset String1 ;pointer for the string input, we will save the string in String1
+                        mov di,offset String1                   ;pointer for the string input, we will save the string in String1
                 read_string:
                         mov ah, 01h
                         int 21h
-                        cmp al,'.' ;the request is to finish the input with '.'.
-                        je end_read_string ; if its '.' we finish to read
+                        cmp al,'.'                              ;the request is to finish the input with '.'.
+                        je end_read_string                      ; if its '.' we finish to read
 
-                        mov [di],al ; save the char we got in the string buffer
-                        inc di ; move the pointer to the next char in the string buffer
-                        jmp read_string ; if its not '.' we keep reading chars and saving them in the string buffer
+                        mov [di],al                             ; save the char we got in the string buffer
+                        inc di                                  ; move the pointer to the next char in the string buffer
+                        jmp read_string                         ; if its not '.' we keep reading chars and saving them in the string buffer
 
                 end_read_string:
-                        mov byte ptr [di], '$' ; End the string with a '$' for DOS printing
-                        mov dx, offset caeser_offset_msg ;print message to ask for offset input
+                        mov byte ptr [di], '$'                  ; End the string with a '$' for DOS printing
+                        mov dx, offset caeser_offset_msg        ;print message to ask for offset input
                         mov ah, 9
                         int 21h
 
-                        mov ah, 01h ; read the offset input
+                        mov ah, 01h                             ; read the offset input
                         int 21h
-                        sub al, 30h ; convert from ASCII to number
-                        mov [shift_offset], al ; save the offset for the caeser shift in shift_offset
+                        sub al, 30h                             ; convert from ASCII to number
+                        mov [shift_offset], al                  ; save the offset for the caeser shift in shift_offset
                         ; Now we have the string in String1 and the offset in shift_offset, we can perform the Caesar shift:
 
                         call NewLine
                         
-                        call Caesar_shift ; perform the Caesar shift, the result will be saved in String2
-                        mov dx, offset String2 ; print the shifted string
+                        call Caesar_shift                       ; perform the Caesar shift, the result will be saved in String2
+                        mov dx, offset String2                  ; print the shifted string
                         mov ah, 9
                         int 21h
 
@@ -242,7 +242,7 @@ main:
                 print_line2:
                         ; checking for end of outter-loop:   
                         cmp di, bx        
-                        je end_loop2                             ; Exit the loop if DI == Number.
+                        je end_loop2                    ; Exit the loop if DI == Number.
                         mov cx, bx
 
                         ; ---printing a word of size CX (CX = Number)---:
@@ -265,33 +265,33 @@ main:
 
 
         Caesar_shift PROC
-                mov si, offset String1 ; SI points to the current char in String1
-                mov di, offset String2 ; DI points to the current char in String2
+                mov si, offset String1          ; SI points to the current char in String1
+                mov di, offset String2          ; DI points to the current char in String2
 
                 shift_loop:
-                        mov al, [si] ; Get the current char from String1
-                        cmp al, '$'  ; Check if it's the end of the string
-                        je end_shift_loop ; If it is, we are done
+                        mov al, [si]            ; Get the current char from String1
+                        cmp al, '$'             ; Check if it's the end of the string
+                        je end_shift_loop       ; If it is, we are done
 
                         ; Check if the character is a lowercase letter (between 'a' and 'z')
                         cmp al, 'a'
-                        jb store_char ; If it's less than 'a', we won't shift it, just store it as is
+                        jb store_char           ; If it's less than 'a', we won't shift it, just store it as is
                         cmp al, 'z'
-                        ja store_char ; If it's greater than 'z', we won't shift it, just store it as is
+                        ja store_char           ; If it's greater than 'z', we won't shift it, just store it as is
 
-                        add al, [shift_offset] ; Shift the character by the offset
+                        add al, [shift_offset]  ; Shift the character by the offset
                         cmp al, 'z'
-                        jbe store_char ; If the shifted character is still a lowercase letter, store it
-                        sub al, 26 ; If it goes past 'z', wrap around to the beginning
+                        jbe store_char          ; If the shifted character is still a lowercase letter, store it
+                        sub al, 26              ; If it goes past 'z', wrap around to the beginning
 
                 store_char:
-                        mov [di], al ; Store the character in String2
-                        inc di ; Increment the DI pointer to the next position in String2
-                        inc si ; Move to the next char in String1
-                        jmp shift_loop ; Repeat the loop for the next character
+                        mov [di], al            ; Store the character in String2
+                        inc di                  ; Increment the DI pointer to the next position in String2
+                        inc si                  ; Move to the next char in String1
+                        jmp shift_loop          ; Repeat the loop for the next character
 
                 end_shift_loop:
-                        mov byte ptr [di], '$' ; End the shifted string with a '$' for DOS printing
+                        mov byte ptr [di], '$'  ; End the shifted string with a '$' for DOS printing
                         ret
         Caesar_shift ENDP
 
@@ -305,18 +305,18 @@ main:
                 read_loop:
                         mov ah,01H
                         int 21H
-                        cmp al,'.' ;the request is to finish the input with .
-                        je end_loop ; if its '.' we finish to read
+                        cmp al,'.'      ;the request is to finish the input with .
+                        je end_loop     ; if its '.' we finish to read
 
                         
-                        sub al,30h ;with we got '5' we convert it to the number 5 with sub 30H in ascii
-                        mov cl,al ; save the number we got (not the char)
-                        mov ch,0 ; we dont want to take trash from CH so we clear it
+                        sub al,30h      ;with we got '5' we convert it to the number 5 with sub 30H in ascii
+                        mov cl,al       ; save the number we got (not the char)
+                        mov ch,0        ; we dont want to take trash from CH so we clear it
 
-                        mov ax,si ;copy the number we got from si to ax
-                        mul bx  ;mul ax=bx*ax
-                        add ax,cx ;add ax=(ax*bx)+cx
-                        mov si,ax ; si=(ax*bx)+cx
+                        mov ax,si       ;copy the number we got from si to ax
+                        mul bx          ;mul ax=bx*ax
+                        add ax,cx       ;add ax=(ax*bx)+cx
+                        mov si,ax       ; si=(ax*bx)+cx
                         
                         jmp read_loop           
         
